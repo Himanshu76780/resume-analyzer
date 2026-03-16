@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 
-const GROQ_API_KEY = "PASTE_YOUR_KEY_HERE";
+const GROQ_API_KEY = "paste api key here my guy - you can get it from https://groq.com/dashboard/api-keys";
 
 app.post("/api/analyze", (req, res) => {
   const { prompt } = req.body;

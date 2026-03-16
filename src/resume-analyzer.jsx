@@ -1,4 +1,33 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { initializeApp, getApps } from "firebase/app";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword as fbSignInEmail,
+  onAuthStateChanged,
+  signOut as fbSignOut,
+} from "firebase/auth";
+
+/* ─────────────────────────────────────────────────────────
+   PASTE YOUR FIREBASE CONFIG HERE
+   Get it from: console.firebase.google.com
+   → Project Settings → Your apps → </> → firebaseConfig
+───────────────────────────────────────────────────────── */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDtQBsK3T36WVK0oEAdc200SAUMuofpV_0",
+  authDomain: "resume-analyzer-e6040.firebaseapp.com",
+  projectId: "resume-analyzer-e6040",
+  storageBucket: "resume-analyzer-e6040.firebasestorage.app",
+  messagingSenderId: "842186449541",
+  appId: "1:842186449541:web:cef8e5d338fd562ac17fec",
+  measurementId: "G-BV2X45KGE7"
+};
+
+const app        = getApps().length === 0 ? initializeApp(FIREBASE_CONFIG) : getApps()[0];
+const auth       = getAuth(app);
+const gProvider  = new GoogleAuthProvider();
 
 /* ═══════════════════════════════════════════════════════════
    TRANSLATIONS
@@ -27,6 +56,7 @@ const TRANSLATIONS = {
     errFile: "Please upload a resume file.",
     errTitle: "Please enter a target job title.",
     errFailed: "Analysis failed. Please try again.",
+    errNotResume: "This document does not appear to be a resume. Please upload a valid resume with sections like Experience, Education, Skills, and personal contact details.",
     resultHeading: "Analysis Complete",
     resultSubheading: "Your Resume Report",
     resumeScore: "Resume Score",
@@ -41,6 +71,25 @@ const TRANSLATIONS = {
     downloadBtn: "⬇ Download Improved Resume",
     improvedTitle: "Your Improved Resume",
     improvedSubtitle: "AI-rewritten and optimized for your target role",
+    scanTitle: "Scanning Resume...",
+    scanSubtitle: "AI is analyzing your document",
+    scanStep1: "Reading document structure",
+    scanStep2: "Extracting keywords & skills",
+    scanStep3: "Matching against job requirements",
+    scanStep4: "Generating scores & insights",
+    resumeScoreDesc: "How well your resume matches the job title, description, and required keywords",
+    atsScoreDesc: "How well your resume is structured, formatted, and optimized for ATS systems",
+    loginTitle: "Welcome Back",
+    loginSubtitle: "Sign in to save your analyses and track your progress",
+    loginEmail: "Email address",
+    loginBtn: "Continue with Email",
+    loginGoogle: "Continue with Google",
+    loginOr: "or",
+    loginSwitch: "Don't have an account?",
+    loginSwitchLink: "Sign up",
+    signupSwitch: "Already have an account?",
+    signupSwitchLink: "Sign in",
+    skipLogin: "Skip for now",
   },
   hi: {
     badge: "AI-संचालित विश्लेषण",
@@ -65,6 +114,7 @@ const TRANSLATIONS = {
     errFile: "कृपया एक रिज्यूमे फ़ाइल अपलोड करें।",
     errTitle: "कृपया लक्ष्य नौकरी शीर्षक दर्ज करें।",
     errFailed: "विश्लेषण विफल। कृपया पुनः प्रयास करें।",
+    errNotResume: "यह दस्तावेज़ रिज्यूमे नहीं लगता। कृपया अनुभव, शिक्षा और संपर्क विवरण वाला वैध रिज्यूमे अपलोड करें।",
     resultHeading: "विश्लेषण पूर्ण",
     resultSubheading: "आपकी रिज्यूमे रिपोर्ट",
     resumeScore: "रिज्यूमे स्कोर",
@@ -79,6 +129,25 @@ const TRANSLATIONS = {
     downloadBtn: "⬇ सुधरा हुआ रिज्यूमे डाउनलोड करें",
     improvedTitle: "आपका सुधरा हुआ रिज्यूमे",
     improvedSubtitle: "AI द्वारा पुनः लिखा और आपकी लक्षित भूमिका के लिए अनुकूलित",
+    scanTitle: "रिज्यूमे स्कैन हो रहा है...",
+    scanSubtitle: "AI आपके दस्तावेज़ का विश्लेषण कर रहा है",
+    scanStep1: "दस्तावेज़ संरचना पढ़ना",
+    scanStep2: "कीवर्ड और कौशल निकालना",
+    scanStep3: "नौकरी की आवश्यकताओं से मिलान",
+    scanStep4: "स्कोर और अंतर्दृष्टि तैयार करना",
+    resumeScoreDesc: "आपका रिज्यूमे नौकरी शीर्षक, विवरण और कीवर्ड से कितना मेल खाता है",
+    atsScoreDesc: "आपका रिज्यूमे ATS सिस्टम के लिए कितना अच्छी तरह संरचित और अनुकूलित है",
+    loginTitle: "वापस स्वागत है",
+    loginSubtitle: "अपने विश्लेषण सहेजने के लिए साइन इन करें",
+    loginEmail: "ईमेल पता",
+    loginBtn: "ईमेल से जारी रखें",
+    loginGoogle: "Google से जारी रखें",
+    loginOr: "या",
+    loginSwitch: "खाता नहीं है?",
+    loginSwitchLink: "साइन अप करें",
+    signupSwitch: "पहले से खाता है?",
+    signupSwitchLink: "साइन इन करें",
+    skipLogin: "अभी छोड़ें",
   },
   es: {
     badge: "ANÁLISIS CON IA",
@@ -103,6 +172,7 @@ const TRANSLATIONS = {
     errFile: "Por favor, sube un archivo de currículum.",
     errTitle: "Por favor, ingresa el cargo objetivo.",
     errFailed: "Análisis fallido. Por favor, inténtalo de nuevo.",
+    errNotResume: "Este documento no parece ser un currículum. Por favor, sube un currículum válido con secciones de Experiencia, Educación y datos de contacto.",
     resultHeading: "Análisis Completo",
     resultSubheading: "Tu Informe de Currículum",
     resumeScore: "Puntuación del Currículum",
@@ -117,6 +187,25 @@ const TRANSLATIONS = {
     downloadBtn: "⬇ Descargar Currículum Mejorado",
     improvedTitle: "Tu Currículum Mejorado",
     improvedSubtitle: "Reescrito con IA y optimizado para tu puesto objetivo",
+    scanTitle: "Escaneando Currículum...",
+    scanSubtitle: "La IA está analizando tu documento",
+    scanStep1: "Leyendo la estructura del documento",
+    scanStep2: "Extrayendo palabras clave y habilidades",
+    scanStep3: "Comparando con los requisitos del puesto",
+    scanStep4: "Generando puntuaciones e ideas",
+    resumeScoreDesc: "Qué tan bien coincide tu currículum con el puesto, descripción y palabras clave",
+    atsScoreDesc: "Qué tan bien está estructurado y optimizado tu currículum para sistemas ATS",
+    loginTitle: "Bienvenido de nuevo",
+    loginSubtitle: "Inicia sesión para guardar tus análisis",
+    loginEmail: "Correo electrónico",
+    loginBtn: "Continuar con correo",
+    loginGoogle: "Continuar con Google",
+    loginOr: "o",
+    loginSwitch: "¿No tienes cuenta?",
+    loginSwitchLink: "Regístrate",
+    signupSwitch: "¿Ya tienes cuenta?",
+    signupSwitchLink: "Inicia sesión",
+    skipLogin: "Omitir por ahora",
   },
   de: {
     badge: "KI-GESTÜTZTE ANALYSE",
@@ -141,6 +230,7 @@ const TRANSLATIONS = {
     errFile: "Bitte lade eine Lebenslaufdatei hoch.",
     errTitle: "Bitte gib eine Ziel-Berufsbezeichnung ein.",
     errFailed: "Analyse fehlgeschlagen. Bitte versuche es erneut.",
+    errNotResume: "Dieses Dokument scheint kein Lebenslauf zu sein. Bitte lade einen gültigen Lebenslauf mit Abschnitten wie Erfahrung, Bildung und Kontaktdaten hoch.",
     resultHeading: "Analyse Abgeschlossen",
     resultSubheading: "Dein Lebenslauf-Bericht",
     resumeScore: "Lebenslauf-Score",
@@ -155,6 +245,25 @@ const TRANSLATIONS = {
     downloadBtn: "⬇ Verbesserten Lebenslauf Herunterladen",
     improvedTitle: "Dein Verbesserter Lebenslauf",
     improvedSubtitle: "KI-überarbeitet und für deine Zielrolle optimiert",
+    scanTitle: "Lebenslauf wird gescannt...",
+    scanSubtitle: "KI analysiert dein Dokument",
+    scanStep1: "Dokumentstruktur lesen",
+    scanStep2: "Schlüsselwörter und Fähigkeiten extrahieren",
+    scanStep3: "Abgleich mit Jobanforderungen",
+    scanStep4: "Bewertungen und Erkenntnisse generieren",
+    resumeScoreDesc: "Wie gut dein Lebenslauf zur Stelle, Beschreibung und Schlüsselwörtern passt",
+    atsScoreDesc: "Wie gut dein Lebenslauf für ATS-Systeme strukturiert und optimiert ist",
+    loginTitle: "Willkommen zurück",
+    loginSubtitle: "Melde dich an, um deine Analysen zu speichern",
+    loginEmail: "E-Mail-Adresse",
+    loginBtn: "Mit E-Mail fortfahren",
+    loginGoogle: "Mit Google fortfahren",
+    loginOr: "oder",
+    loginSwitch: "Noch kein Konto?",
+    loginSwitchLink: "Registrieren",
+    signupSwitch: "Bereits ein Konto?",
+    signupSwitchLink: "Anmelden",
+    skipLogin: "Jetzt überspringen",
   },
   ja: {
     badge: "AI搭載分析",
@@ -179,6 +288,7 @@ const TRANSLATIONS = {
     errFile: "履歴書ファイルをアップロードしてください。",
     errTitle: "目標職種名を入力してください。",
     errFailed: "分析に失敗しました。もう一度お試しください。",
+    errNotResume: "このドキュメントは履歴書ではないようです。経験、学歴、連絡先を含む有効な履歴書をアップロードしてください。",
     resultHeading: "分析完了",
     resultSubheading: "あなたの履歴書レポート",
     resumeScore: "履歴書スコア",
@@ -193,6 +303,25 @@ const TRANSLATIONS = {
     downloadBtn: "⬇ 改善された履歴書をダウンロード",
     improvedTitle: "改善されたあなたの履歴書",
     improvedSubtitle: "AIによって書き直され、目標職種に最適化されました",
+    scanTitle: "履歴書をスキャン中...",
+    scanSubtitle: "AIがドキュメントを分析しています",
+    scanStep1: "ドキュメント構造の読み取り",
+    scanStep2: "キーワードとスキルの抽出",
+    scanStep3: "求人要件との照合",
+    scanStep4: "スコアとインサイトの生成",
+    resumeScoreDesc: "履歴書が職種・説明・キーワードとどれだけ一致しているか",
+    atsScoreDesc: "履歴書がATSシステム向けにどれだけ構造化・最適化されているか",
+    loginTitle: "おかえりなさい",
+    loginSubtitle: "サインインして分析を保存しましょう",
+    loginEmail: "メールアドレス",
+    loginBtn: "メールで続ける",
+    loginGoogle: "Googleで続ける",
+    loginOr: "または",
+    loginSwitch: "アカウントをお持ちでない方は",
+    loginSwitchLink: "サインアップ",
+    signupSwitch: "すでにアカウントをお持ちの方は",
+    signupSwitchLink: "サインイン",
+    skipLogin: "今はスキップ",
   },
   pt: {
     badge: "ANÁLISE COM IA",
@@ -217,6 +346,7 @@ const TRANSLATIONS = {
     errFile: "Por favor, carregue um arquivo de currículo.",
     errTitle: "Por favor, insira o cargo alvo.",
     errFailed: "Análise falhou. Por favor, tente novamente.",
+    errNotResume: "Este documento não parece ser um currículo. Por favor, carregue um currículo válido com seções de Experiência, Educação e dados de contato.",
     resultHeading: "Análise Concluída",
     resultSubheading: "Seu Relatório de Currículo",
     resumeScore: "Pontuação do Currículo",
@@ -231,6 +361,25 @@ const TRANSLATIONS = {
     downloadBtn: "⬇ Baixar Currículo Melhorado",
     improvedTitle: "Seu Currículo Melhorado",
     improvedSubtitle: "Reescrito com IA e otimizado para seu cargo alvo",
+    scanTitle: "Escaneando Currículo...",
+    scanSubtitle: "A IA está analisando seu documento",
+    scanStep1: "Lendo a estrutura do documento",
+    scanStep2: "Extraindo palavras-chave e habilidades",
+    scanStep3: "Comparando com os requisitos da vaga",
+    scanStep4: "Gerando pontuações e insights",
+    resumeScoreDesc: "Quão bem seu currículo corresponde ao cargo, descrição e palavras-chave",
+    atsScoreDesc: "Quão bem seu currículo está estruturado e otimizado para sistemas ATS",
+    loginTitle: "Bem-vindo de volta",
+    loginSubtitle: "Entre para salvar suas análises",
+    loginEmail: "Endereço de e-mail",
+    loginBtn: "Continuar com e-mail",
+    loginGoogle: "Continuar com Google",
+    loginOr: "ou",
+    loginSwitch: "Não tem uma conta?",
+    loginSwitchLink: "Cadastre-se",
+    signupSwitch: "Já tem uma conta?",
+    signupSwitchLink: "Entre",
+    skipLogin: "Pular por agora",
   },
   nl: {
     badge: "AI-GESTUURDE ANALYSE",
@@ -255,6 +404,7 @@ const TRANSLATIONS = {
     errFile: "Upload een cv-bestand.",
     errTitle: "Voer een doelfunctietitel in.",
     errFailed: "Analyse mislukt. Probeer het opnieuw.",
+    errNotResume: "Dit document lijkt geen cv te zijn. Upload een geldig cv met secties als Ervaring, Opleiding en contactgegevens.",
     resultHeading: "Analyse Voltooid",
     resultSubheading: "Jouw CV-rapport",
     resumeScore: "CV Score",
@@ -269,6 +419,25 @@ const TRANSLATIONS = {
     downloadBtn: "⬇ Verbeterd CV Downloaden",
     improvedTitle: "Jouw Verbeterd CV",
     improvedSubtitle: "AI-herschreven en geoptimaliseerd voor jouw doelfunctie",
+    scanTitle: "CV wordt gescand...",
+    scanSubtitle: "AI analyseert je document",
+    scanStep1: "Documentstructuur lezen",
+    scanStep2: "Trefwoorden en vaardigheden extraheren",
+    scanStep3: "Vergelijken met functievereisten",
+    scanStep4: "Scores en inzichten genereren",
+    resumeScoreDesc: "Hoe goed je cv overeenkomt met de functie, beschrijving en trefwoorden",
+    atsScoreDesc: "Hoe goed je cv gestructureerd en geoptimaliseerd is voor ATS-systemen",
+    loginTitle: "Welkom terug",
+    loginSubtitle: "Log in om je analyses op te slaan",
+    loginEmail: "E-mailadres",
+    loginBtn: "Doorgaan met e-mail",
+    loginGoogle: "Doorgaan met Google",
+    loginOr: "of",
+    loginSwitch: "Nog geen account?",
+    loginSwitchLink: "Aanmelden",
+    signupSwitch: "Al een account?",
+    signupSwitchLink: "Inloggen",
+    skipLogin: "Nu overslaan",
   },
 };
 
@@ -308,7 +477,7 @@ function ScoreRing({ score, label, color, delay = 0 }) {
     return () => { clearTimeout(timer); cancelAnimationFrame(raf); };
   }, [score, delay]);
 
-  const colorMap = { teal: "#00d4aa", amber: "#f59e0b" };
+  const colorMap = { teal: "#0d9488", amber: "#d97706" };
   const clr = colorMap[color] || color;
   const offset = C - (displayed / 100) * C;
 
@@ -323,13 +492,13 @@ function ScoreRing({ score, label, color, delay = 0 }) {
         </svg>
         <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column",
           alignItems:"center", justifyContent:"center" }}>
-          <span style={{ fontSize:32, fontWeight:800, color:"#f1f5f9",
+          <span style={{ fontSize:32, fontWeight:800, color:"#1c1917",
             fontFamily:"'Outfit',sans-serif", lineHeight:1 }}>{displayed}</span>
-          <span style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:2 }}>/100</span>
+          <span style={{ fontSize:11, color:"#78716c", marginTop:2 }}>/100</span>
         </div>
       </div>
       <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:13, fontWeight:700, color:"#94a3b8",
+        <div style={{ fontSize:13, fontWeight:700, color:"#78716c",
           letterSpacing:"0.05em", textTransform:"uppercase" }}>{label}</div>
         <div style={{ fontSize:12, color:clr, fontWeight:600, marginTop:4 }}>
           {displayed >= 80 ? "●●●●●" : displayed >= 60 ? "●●●●○" : displayed >= 40 ? "●●●○○" : "●●○○○"}
@@ -346,7 +515,7 @@ function ResumeSection({ title, icon, children }) {
   return (
     <div style={{ marginBottom:22 }}>
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12,
-        paddingBottom:8, borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
+        paddingBottom:8, borderBottom:"1px solid #e8ddd4" }}>
         <span style={{ fontSize:15 }}>{icon}</span>
         <span style={{ fontFamily:"'Outfit',sans-serif", fontWeight:700,
           fontSize:13, color:"#94a3b8", letterSpacing:"0.08em",
@@ -370,19 +539,127 @@ export default function ResumeAnalyzer() {
   const [scanStep, setScanStep]         = useState(0);
   const [pendingResult, setPendingResult] = useState(null);
   const [result, setResult]             = useState(null);
+  const [baseResult, setBaseResult]     = useState(null); // always English, never changes
+  const [translating, setTranslating]   = useState(false);
   const [error, setError]               = useState("");
   const [dragOver, setDragOver]         = useState(false);
   const [improving, setImproving]       = useState(false);
   const [improvedResume, setImprovedResume] = useState(null);
+    const [user, setUser]                 = useState(null);
+  const [authReady, setAuthReady]       = useState(false);
+  const [skipLogin, setSkipLogin]       = useState(false);
+  const [isSignup, setIsSignup]         = useState(false);
+  const [loginEmail, setLoginEmail]     = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginErr, setLoginErr]         = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const fileRef = useRef(null);
 
+  const showLogin = authReady && !user && !skipLogin;
+
+  // Firebase auth state listener
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u ? {
+        name: u.displayName || u.email.split("@")[0],
+        email: u.email,
+        picture: u.photoURL || null,
+      } : null);
+      setAuthReady(true);
+    });
+    return unsub;
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    setLoginLoading(true); setLoginErr("");
+    try {
+      await signInWithPopup(auth, gProvider);
+    } catch (e) {
+      if (e.code === "auth/popup-closed-by-user") setLoginErr("Popup closed. Please try again.");
+      else if (e.code === "auth/unauthorized-domain") setLoginErr("Add localhost to Firebase Authorized Domains (Auth → Settings).");
+      else setLoginErr(e.message);
+    } finally { setLoginLoading(false); }
+  };
+
+  const handleEmailAuth = async () => {
+    if (!loginEmail.includes("@")) { setLoginErr("Enter a valid email."); return; }
+    if (loginPassword.length < 6)  { setLoginErr("Password must be at least 6 characters."); return; }
+    setLoginLoading(true); setLoginErr("");
+    try {
+      if (isSignup) await createUserWithEmailAndPassword(auth, loginEmail, loginPassword);
+      else          await fbSignInEmail(auth, loginEmail, loginPassword);
+    } catch (e) {
+      const map = {
+        "auth/user-not-found":      "No account found. Sign up instead?",
+        "auth/wrong-password":      "Incorrect password.",
+        "auth/invalid-credential":  "Incorrect email or password.",
+        "auth/email-already-in-use":"Email already registered. Sign in instead.",
+        "auth/weak-password":       "Password too weak. Use 6+ characters.",
+      };
+      setLoginErr(map[e.code] || e.message);
+    } finally { setLoginLoading(false); }
+  };
+
+  const signOut = async () => {
+    await fbSignOut(auth);
+    setResult(null); setBaseResult(null); setFile(null);
+    setJobTitle(""); setJobDesc(""); setImprovedResume(null);
+  };
   // t is always in sync with lang — no custom dropdown state needed
   const t = TRANSLATIONS[lang];
   const currentLang = LANG_OPTIONS.find(l => l.code === lang);
 
-  const handleLangChange = (e) => {
-    setLang(e.target.value);
+  const handleLangChange = async (e) => {
+    const newLang = e.target.value;
+    setLang(newLang);
     setError("");
+
+    // If we have a result and switching away from English, translate it
+    // If switching back to English, restore the base result directly
+    if (baseResult) {
+      if (newLang === "en") {
+        setResult({ ...baseResult });
+        return;
+      }
+      // Translate text fields only — scores NEVER change
+      const langOption = LANG_OPTIONS.find(l => l.code === newLang);
+      const langName = langOption?.label || "English";
+      setTranslating(true);
+      try {
+        const translatePrompt = `Translate the following JSON text fields into ${langName}. 
+Return ONLY a valid JSON object with the EXACT same structure.
+Keep "resumeScore" and "atsScore" numbers IDENTICAL — do not change them.
+Translate ONLY: summary, strengths array items, improvements title and description fields.
+
+Input JSON:
+${JSON.stringify(baseResult, null, 2)}
+
+Rules:
+- Return valid JSON only, no markdown fences
+- Numbers resumeScore and atsScore must be EXACTLY the same as input
+- Every text string must be in ${langName}`;
+
+        const res = await fetch("http://localhost:3001/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: translatePrompt }),
+        });
+        const data = await res.json();
+        if (!data.error) {
+          const raw = (data.text || "").replace(/```json|```/g, "").trim();
+          const translated = JSON.parse(raw);
+          // Guarantee scores are preserved
+          translated.resumeScore = baseResult.resumeScore;
+          translated.atsScore = baseResult.atsScore;
+          setResult(translated);
+        }
+      } catch (err) {
+        console.error("Translation error:", err);
+        // Fallback: keep existing result, just switch UI labels
+      } finally {
+        setTranslating(false);
+      }
+    }
   };
 
   /* ── File helpers ── */
@@ -402,30 +679,101 @@ export default function ResumeAnalyzer() {
   }, []);
 
   const extractText = async (f) => {
+    // Images — convert to base64 and return a note for the AI
+    if (f.type.startsWith("image/")) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve("IMAGE_FILE_BASE64:" + e.target.result.split(",")[1]);
+        };
+        reader.onerror = () => resolve("__EXTRACTION_FAILED__");
+        reader.readAsDataURL(f);
+      });
+    }
+
+    // PDF — use PDF.js loaded from CDN
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
+          // Dynamically load PDF.js if not already loaded
+          if (!window.pdfjsLib) {
+            await new Promise((res, rej) => {
+              const script = document.createElement("script");
+              script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+              script.onload = res;
+              script.onerror = rej;
+              document.head.appendChild(script);
+            });
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+              "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+          }
+
           const typedArray = new Uint8Array(e.target.result);
-          const pdfjsLib = await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
-          pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-          const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
+          const pdf = await window.pdfjsLib.getDocument({ data: typedArray }).promise;
           let fullText = "";
+
           for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const content = await page.getTextContent();
-            fullText += content.items.map(item => item.str).join(" ") + "\n";
+            const pageText = content.items
+              .map(item => item.str)
+              .join(" ")
+              .replace(/\s+/g, " ")
+              .trim();
+            fullText += pageText + "\n";
           }
-          resolve(fullText);
+
+          const cleaned = fullText.trim();
+          console.log("PDF.js extracted:", cleaned.length, "chars | Preview:", cleaned.slice(0, 150));
+          resolve(cleaned.length >= 30 ? cleaned : "__EXTRACTION_FAILED__");
+
         } catch (err) {
-          resolve("Could not extract text from PDF.");
+          console.error("PDF.js error:", err);
+          // Fallback: manual binary extraction
+          try {
+            const bytes = new Uint8Array(e.target.result);
+            let binary = "";
+            const chunk = 8192;
+            for (let i = 0; i < bytes.length; i += chunk) {
+              binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+            }
+            const blocks = [];
+            const btEt = /BT([\s\S]*?)ET/g;
+            let bm;
+            while ((bm = btEt.exec(binary)) !== null) {
+              const blk = bm[1];
+              const tjRe = /\(([^)]{1,300})\)\s*Tj/g;
+              let m;
+              while ((m = tjRe.exec(blk)) !== null) {
+                const t = m[1].replace(/[^\x20-\x7E]/g, " ").trim();
+                if (t.length > 1) blocks.push(t);
+              }
+              const tjArr = /\[([\s\S]*?)\]\s*TJ/g;
+              while ((m = tjArr.exec(blk)) !== null) {
+                const parts = [];
+                const pr = /\(([^)]*)\)/g;
+                let p;
+                while ((p = pr.exec(m[1])) !== null) {
+                  const t = p[1].replace(/[^\x20-\x7E]/g, " ").trim();
+                  if (t) parts.push(t);
+                }
+                if (parts.length) blocks.push(parts.join(""));
+              }
+            }
+            const text = [...new Set(blocks)].join(" ").replace(/\s{3,}/g, "  ").trim();
+            resolve(text.length >= 30 ? text : "__EXTRACTION_FAILED__");
+          } catch {
+            resolve("__EXTRACTION_FAILED__");
+          }
         }
       };
+      reader.onerror = () => resolve("__EXTRACTION_FAILED__");
       reader.readAsArrayBuffer(f);
     });
   };
 
-  /* ── Analysis ── */
+    /* ── Analysis ── */
   const analyze = async () => {
     setError("");
     if (!file) { setError(t.errFile); return; }
@@ -444,45 +792,55 @@ export default function ResumeAnalyzer() {
     try {
       const resumeText = await extractText(file);
 
-      const langName = currentLang?.label || "English";
-      const langCode = lang;
+      // If extraction completely failed, show clear error
+      if (resumeText === "__EXTRACTION_FAILED__") {
+        setScanning(false);
+        setError("Could not read text from your file. Please make sure it is a text-based PDF (not a scanned image). Try copying text from the PDF first — if you can select text, it will work.");
+        return;
+      }
 
-      const prompt = `You are an expert resume analyst. Here is the resume text:
+      // Always analyze in English — translation happens separately on language switch
+      const prompt = `You are an expert career consultant and resume analyst. Carefully read every word of the following document and provide a deeply personalized, specific analysis based exactly on what is written in it.
 
---- RESUME START ---
+--- DOCUMENT START ---
 ${resumeText}
---- RESUME END ---
+--- DOCUMENT END ---
 
 Target Job Title: ${jobTitle}
 ${jobDesc ? `Job Description:\n${jobDesc}` : ""}
 
-CRITICAL INSTRUCTION: You MUST write every single word of your response in ${langName} (language code: ${langCode}). 
-Do NOT use English at all unless ${langName} is English.
-Every string value in the JSON must be fully written in ${langName}.
+LANGUAGE INSTRUCTION: Write your entire response in English only.
 
-Respond ONLY with a valid JSON object — no markdown fences, no extra text. Exact structure:
+ANALYSIS INSTRUCTIONS:
+- Read the actual content carefully. Reference specific details from the document such as the person's name, actual job titles, companies, skills, projects, and dates.
+- Do NOT write generic advice. Every sentence must be specific to this exact document.
+- The summary must mention the person by name (if found) and reference actual sections, roles, or projects from their document.
+- Strengths must reference actual things listed in the document (e.g. specific technologies, actual companies worked at, real projects).
+- Improvements must be specific actionable fixes based on what is actually missing or weak in this specific document.
+- If the document is NOT a resume (e.g. a form, invoice, or random text), give low scores (30-45) and explain in the summary that this does not appear to be a resume.
+
+Respond ONLY with a valid JSON object — no markdown fences, no extra text before or after:
 {
-  "resumeScore": <integer 0-100>,
-  "atsScore": <integer 0-100>,
-  "summary": "<2-3 sentences in ${langName} ONLY>",
+  "resumeScore": <integer 30-100>,
+  "atsScore": <integer 30-100>,
+  "summary": "<2-3 specific sentences referencing actual content from this document>",
   "strengths": [
-    "<strength 1 in ${langName}>",
-    "<strength 2 in ${langName}>",
-    "<strength 3 in ${langName}>"
+    "<specific strength referencing actual content from the document>",
+    "<specific strength referencing actual content from the document>",
+    "<specific strength referencing actual content from the document>"
   ],
   "improvements": [
-    { "title": "<short title in ${langName}>", "description": "<detailed explanation in ${langName}>" },
-    { "title": "<short title in ${langName}>", "description": "<detailed explanation in ${langName}>" },
-    { "title": "<short title in ${langName}>", "description": "<detailed explanation in ${langName}>" },
-    { "title": "<short title in ${langName}>", "description": "<detailed explanation in ${langName}>" }
+    { "title": "<specific issue title>", "description": "<specific actionable fix based on actual gaps in this document>" },
+    { "title": "<specific issue title>", "description": "<specific actionable fix based on actual gaps in this document>" },
+    { "title": "<specific issue title>", "description": "<specific actionable fix based on actual gaps in this document>" },
+    { "title": "<specific issue title>", "description": "<specific actionable fix based on actual gaps in this document>" }
   ]
 }
 
-Scoring:
-- resumeScore: overall quality, formatting, clarity, relevance, quantifiable achievements (0-100)
-- atsScore: keyword density, proper section headers, no tables or graphics (0-100)
-
-REMINDER: Every piece of text must be in ${langName}. No English allowed unless ${langName} is English.`;
+SCORING RULES:
+- resumeScore: How well the document matches the target job title and job description. Check keyword alignment, relevant skills, experience relevance. Score 30-100.
+- atsScore: How well structured the document is for ATS systems. Check section headers, action verbs, keyword density, clean formatting, measurable achievements. Score 30-100.
+- A genuine resume with good match scores 65-85. A weak or irrelevant document scores 30-50. Never fabricate details not in the document.`;
 
       const [res] = await Promise.all([
         fetch("http://localhost:3001/api/analyze", {
@@ -506,9 +864,55 @@ REMINDER: Every piece of text must be in ${langName}. No English allowed unless 
       const parsed = JSON.parse(clean);
 
       setScanStep(5);
-      setTimeout(() => {
+      setTimeout(async () => {
         setScanning(false);
-        setResult(parsed);
+        // Always store English base result
+        setBaseResult(parsed);
+
+        // If user is on English, show directly
+        if (lang === "en") {
+          setResult(parsed);
+          return;
+        }
+
+        // Otherwise translate into the selected language immediately
+        const langOption = LANG_OPTIONS.find(l => l.code === lang);
+        const langName = langOption?.label || "English";
+        setTranslating(true);
+        try {
+          const translatePrompt = `Translate the following JSON text fields into ${langName}.
+Return ONLY a valid JSON object with the EXACT same structure.
+Keep "resumeScore" and "atsScore" numbers IDENTICAL — do not change them.
+Translate ONLY: summary, strengths array items, improvements title and description fields.
+
+Input JSON:
+${JSON.stringify(parsed, null, 2)}
+
+Rules:
+- Return valid JSON only, no markdown fences
+- Numbers resumeScore and atsScore must be EXACTLY the same as input
+- Every text string must be in ${langName}`;
+
+          const tRes = await fetch("http://localhost:3001/api/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: translatePrompt }),
+          });
+          const tData = await tRes.json();
+          if (!tData.error) {
+            const tRaw = (tData.text || "").replace(/```json|```/g, "").trim();
+            const translated = JSON.parse(tRaw);
+            translated.resumeScore = parsed.resumeScore;
+            translated.atsScore = parsed.atsScore;
+            setResult(translated);
+          } else {
+            setResult(parsed); // fallback to English
+          }
+        } catch {
+          setResult(parsed); // fallback to English
+        } finally {
+          setTranslating(false);
+        }
       }, 600);
 
     } catch (err) {
@@ -521,9 +925,9 @@ REMINDER: Every piece of text must be in ${langName}. No English allowed unless 
   };
 
   const reset = () => {
-    setResult(null); setFile(null);
+    setResult(null); setBaseResult(null); setFile(null);
     setJobTitle(""); setJobDesc(""); setError("");
-    setImprovedResume(null);
+    setImprovedResume(null); setTranslating(false);
   };
 
   /* ── Improve Resume ── */
@@ -702,9 +1106,9 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
   const styles = `
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Manrope:wght@400;500;600;700&display=swap');
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #060d1a; font-family: 'Manrope', sans-serif; color: #e2e8f0; }
+    body { background: #faf5ef; font-family: 'Manrope', sans-serif; color: #292524; }
     ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-thumb { background: rgba(0,212,170,0.3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: rgba(13,148,136,0.3); border-radius: 3px; }
     input, textarea, select { font-family: 'Manrope', sans-serif; }
     @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -714,10 +1118,10 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
     .d3  { animation-delay: 0.22s; }
     .d4  { animation-delay: 0.30s; }
     .card {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: #ffffff;
+      border: 1px solid #e8ddd4;
       border-radius: 20px;
-      backdrop-filter: blur(10px);
+      box-shadow: 0 2px 16px rgba(180,120,60,0.07);
     }
     .lang-wrapper {
       position: relative;
@@ -734,7 +1138,7 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
     .lang-arrow {
       position: absolute;
       right: 12px;
-      color: rgba(255,255,255,0.4);
+      color: #a8937e;
       font-size: 11px;
       pointer-events: none;
       z-index: 2;
@@ -743,10 +1147,10 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
       appearance: none;
       -webkit-appearance: none;
       -moz-appearance: none;
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.14);
+      background: #fff8f2;
+      border: 1px solid #e8ddd4;
       border-radius: 12px;
-      color: #e2e8f0;
+      color: #292524;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
@@ -757,11 +1161,11 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
       position: relative;
       z-index: 1;
     }
-    .lang-select:hover  { background: rgba(255,255,255,0.11); border-color: rgba(0,212,170,0.4); }
-    .lang-select:focus  { border-color: #00d4aa; box-shadow: 0 0 0 3px rgba(0,212,170,0.15); }
-    .lang-select option { background: #0d1b2e; color: #e2e8f0; padding: 8px; }
+    .lang-select:hover  { background: #fff3e8; border-color: rgba(13,148,136,0.4); }
+    .lang-select:focus  { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
+    .lang-select option { background: #fff8f2; color: #292524; padding: 8px; }
     .upload-zone {
-      border: 2px dashed rgba(0,212,170,0.25);
+      border: 2px dashed rgba(13,148,136,0.3);
       border-radius: 18px;
       padding: 46px 28px;
       display: flex;
@@ -771,42 +1175,42 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
       cursor: pointer;
       text-align: center;
       transition: all 0.22s;
-      background: rgba(0,212,170,0.02);
+      background: rgba(13,148,136,0.04);
     }
     .upload-zone:hover, .drag-over {
-      border-color: rgba(0,212,170,0.6) !important;
-      background: rgba(0,212,170,0.06) !important;
-      box-shadow: 0 0 28px rgba(0,212,170,0.08);
+      border-color: rgba(13,148,136,0.6) !important;
+      background: rgba(13,148,136,0.05) !important;
+      box-shadow: 0 0 28px rgba(13,148,136,0.08);
     }
     .field-label {
       display: block;
       font-size: 12px;
       font-weight: 700;
-      color: #64748b;
+      color: #a8937e;
       letter-spacing: 0.07em;
       text-transform: uppercase;
       margin-bottom: 10px;
     }
     .inp {
       width: 100%;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
+      background: #fff8f2;
+      border: 1px solid #e8ddd4;
       border-radius: 14px;
-      color: #f1f5f9;
+      color: #292524;
       font-size: 15px;
       padding: 14px 18px;
       outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .inp::placeholder { color: rgba(255,255,255,0.22); }
-    .inp:focus { border-color: rgba(0,212,170,0.5); box-shadow: 0 0 0 3px rgba(0,212,170,0.1); }
+    .inp::placeholder { color: #c4a98a; }
+    .inp:focus { border-color: rgba(13,148,136,0.5); box-shadow: 0 0 0 3px rgba(13,148,136,0.1); }
     .btn-main {
       width: 100%;
       padding: 18px;
-      background: linear-gradient(135deg, #00d4aa, #0098d4);
+      background: linear-gradient(135deg, #0d9488, #0369a1);
       border: none;
       border-radius: 14px;
-      color: #060d1a;
+      color: #ffffff;
       font-family: 'Outfit', sans-serif;
       font-size: 15px;
       font-weight: 800;
@@ -819,13 +1223,13 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
       gap: 10px;
       transition: transform 0.2s, box-shadow 0.2s;
     }
-    .btn-main:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(0,212,170,0.3); }
+    .btn-main:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(13,148,136,0.25); }
     .btn-main:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-reset {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.12);
+      background: #fff8f2;
+      border: 1px solid #e8ddd4;
       border-radius: 12px;
-      color: #e2e8f0;
+      color: #57534e;
       font-family: 'Outfit', sans-serif;
       font-size: 14px;
       font-weight: 700;
@@ -833,47 +1237,47 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
       cursor: pointer;
       transition: background 0.2s;
     }
-    .btn-reset:hover { background: rgba(255,255,255,0.1); }
+    .btn-reset:hover { background: #f0e8de; }
     .strength-item {
       display: flex;
       align-items: flex-start;
       gap: 10px;
-      background: rgba(0,212,170,0.07);
-      border: 1px solid rgba(0,212,170,0.18);
+      background: rgba(13,148,136,0.06);
+      border: 1px solid rgba(13,148,136,0.2);
       border-radius: 10px;
       padding: 12px 14px;
       font-size: 13px;
-      color: #a7f3e4;
+      color: #0f5450;
       line-height: 1.55;
     }
     .improve-item {
       display: flex;
       gap: 14px;
-      background: rgba(245,158,11,0.05);
-      border: 1px solid rgba(245,158,11,0.14);
+      background: rgba(217,119,6,0.05);
+      border: 1px solid rgba(217,119,6,0.18);
       border-radius: 14px;
       padding: 18px;
     }
     .improve-num {
       min-width: 28px;
       height: 28px;
-      background: rgba(245,158,11,0.14);
+      background: rgba(217,119,6,0.12);
       border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 13px;
       font-weight: 800;
-      color: #f59e0b;
+      color: #b45309;
       flex-shrink: 0;
     }
     .err-box {
-      background: rgba(244,63,94,0.1);
-      border: 1px solid rgba(244,63,94,0.25);
+      background: rgba(220,38,38,0.06);
+      border: 1px solid rgba(220,38,38,0.2);
       border-radius: 12px;
       padding: 13px 18px;
       font-size: 13px;
-      color: #f87171;
+      color: #b91c1c;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -889,14 +1293,28 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
       <style>{styles}</style>
 
       <div className="mesh">
-        <div className="blob" style={{ width:550, height:550, top:"-180px", left:"-150px", background:"#00d4aa", opacity:0.07 }} />
-        <div className="blob" style={{ width:400, height:400, bottom:"80px", right:"-100px", background:"#0098d4", opacity:0.07 }} />
+        <div className="blob" style={{ width:550, height:550, top:"-180px", left:"-150px", background:"#f97316", opacity:0.06 }} />
+        <div className="blob" style={{ width:400, height:400, bottom:"80px", right:"-100px", background:"#0d9488", opacity:0.06 }} />
       </div>
 
       <div style={{ position:"relative", zIndex:1, maxWidth:760, margin:"0 auto", padding:"28px 18px 72px" }}>
 
         {/* ══════════════ LANGUAGE SELECTOR ══════════════ */}
-        <div className="fu" style={{ display:"flex", justifyContent:"flex-end", marginBottom:28 }}>
+        <div className="fu" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:28 }}>
+          {user ? (
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              {user.picture
+                ? <img src={user.picture} style={{ width:34, height:34, borderRadius:"50%", border:"2px solid #e8ddd4" }} alt="avatar"/>
+                : <div style={{ width:34, height:34, borderRadius:"50%", background:"linear-gradient(135deg,#0d9488,#0369a1)",
+                    display:"flex", alignItems:"center", justifyContent:"center", color:"#fff",
+                    fontSize:14, fontWeight:700 }}>{user.name[0].toUpperCase()}</div>
+              }
+              <div>
+                <div style={{ fontSize:13, fontWeight:700, color:"#1c1917" }}>{user.name}</div>
+                <div style={{ fontSize:11, color:"#a8937e" }}>{user.email}</div>
+              </div>
+            </div>
+          ) : <div/>}
           <div className="lang-wrapper">
             <span className="lang-flag">{currentLang?.flag}</span>
             <select
@@ -914,57 +1332,139 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
           </div>
         </div>
 
-        {scanning ? (
+        {showLogin ? (
+          /* ══════════════ LOGIN SCREEN ══════════════ */
+          <div className="card fu" style={{ padding:"48px 40px", textAlign:"center", maxWidth:440, margin:"0 auto" }}>
+
+            <div style={{ width:54, height:54, background:"linear-gradient(135deg,#0d9488,#0369a1)",
+              borderRadius:14, display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:24, margin:"0 auto 22px" }}>✦</div>
+
+            <h2 style={{ fontFamily:"'Outfit',sans-serif", fontWeight:800, fontSize:22,
+              color:"#1c1917", marginBottom:6 }}>
+              {isSignup ? "Create Account" : "Welcome Back"}
+            </h2>
+            <p style={{ fontSize:13, color:"#78716c", marginBottom:26, lineHeight:1.6 }}>
+              {isSignup ? "Sign up to save your analyses" : "Sign in to track your progress"}
+            </p>
+
+            {loginErr && (
+              <div style={{ background:"rgba(220,38,38,0.06)", border:"1px solid rgba(220,38,38,0.2)",
+                borderRadius:10, padding:"10px 14px", fontSize:13, color:"#b91c1c",
+                marginBottom:14, textAlign:"left" }}>⚠ {loginErr}</div>
+            )}
+
+            <button onClick={handleGoogleSignIn} disabled={loginLoading}
+              style={{ width:"100%", padding:"12px 20px", borderRadius:12, marginBottom:12,
+                background:"#fff8f2", border:"1px solid #e8ddd4", color:"#292524",
+                fontSize:14, fontWeight:600, cursor: loginLoading ? "not-allowed" : "pointer",
+                display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+                fontFamily:"'Manrope',sans-serif", transition:"background 0.2s" }}
+              onMouseEnter={e => e.currentTarget.style.background="#f0e8de"}
+              onMouseLeave={e => e.currentTarget.style.background="#fff8f2"}>
+              <svg width="18" height="18" viewBox="0 0 48 48">
+                <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+                <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+                <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+                <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+              </svg>
+              Continue with Google
+            </button>
+
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+              <div style={{ flex:1, height:1, background:"#e8ddd4" }}/>
+              <span style={{ fontSize:12, color:"#a8937e" }}>or</span>
+              <div style={{ flex:1, height:1, background:"#e8ddd4" }}/>
+            </div>
+
+            <input className="inp" type="email" placeholder="Email address"
+              value={loginEmail} onChange={e => { setLoginEmail(e.target.value); setLoginErr(""); }}
+              onKeyDown={e => e.key === "Enter" && handleEmailAuth()}
+              style={{ marginBottom:10 }} />
+
+            <input className="inp" type="password"
+              placeholder={isSignup ? "Create password (min 6 chars)" : "Password"}
+              value={loginPassword} onChange={e => { setLoginPassword(e.target.value); setLoginErr(""); }}
+              onKeyDown={e => e.key === "Enter" && handleEmailAuth()}
+              style={{ marginBottom:12 }} />
+
+            <button className="btn-main" onClick={handleEmailAuth} disabled={loginLoading}
+              style={{ width:"100%", marginBottom:18 }}>
+              {loginLoading
+                ? <><span style={{ display:"inline-block", width:15, height:15,
+                    border:"2px solid rgba(255,255,255,0.4)", borderTopColor:"#fff",
+                    borderRadius:"50%", animation:"spin 0.7s linear infinite" }}/>{" "}
+                    {isSignup ? "Creating account..." : "Signing in..."}</>
+                : isSignup ? "Create Account" : "Sign In"
+              }
+            </button>
+
+            <div style={{ fontSize:13, color:"#78716c", marginBottom:12 }}>
+              {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
+              <span onClick={() => { setIsSignup(!isSignup); setLoginErr(""); }}
+                style={{ color:"#0d9488", cursor:"pointer", fontWeight:600 }}>
+                {isSignup ? "Sign in" : "Sign up"}
+              </span>
+            </div>
+
+            <button onClick={() => setSkipLogin(true)}
+              style={{ background:"none", border:"none", color:"#c4a98a", fontSize:12,
+                cursor:"pointer", fontFamily:"'Manrope',sans-serif", textDecoration:"underline" }}>
+              Skip for now
+            </button>
+          </div>
+
+        ) : scanning ? (
           /* ══════════════ SCANNING SCREEN ══════════════ */
-          <div className="card fu" style={{ padding:"60px 40px", textAlign:"center", marginBottom:18 }}>
+          <div className="card fu" style={{ padding:"60px 40px", textAlign:"center", marginBottom:18, background:"#ffffff" }}>
             <div style={{ marginBottom:32 }}>
               <div style={{ position:"relative", width:100, height:100, margin:"0 auto 28px" }}>
                 <svg viewBox="0 0 100 100" style={{ width:100, height:100, transform:"rotate(-90deg)" }}>
-                  <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(0,212,170,0.12)" strokeWidth="6"/>
-                  <circle cx="50" cy="50" r="42" fill="none" stroke="#00d4aa" strokeWidth="6"
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(13,148,136,0.12)" strokeWidth="6"/>
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="#0d9488" strokeWidth="6"
                     strokeDasharray="264" strokeDashoffset={264 - (264 * Math.min(scanStep, 4) / 4)}
                     style={{ transition:"stroke-dashoffset 0.8s ease" }}/>
                 </svg>
                 <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center",
-                  justifyContent:"center", fontSize:22, fontWeight:800, color:"#00d4aa",
+                  justifyContent:"center", fontSize:22, fontWeight:800, color:"#0d9488",
                   fontFamily:"'Outfit',sans-serif" }}>
                   {Math.round(Math.min(scanStep, 4) / 4 * 100)}%
                 </div>
               </div>
 
-              <div style={{ fontSize:20, fontWeight:700, color:"#f1f5f9",
+              <div style={{ fontSize:20, fontWeight:700, color:"#1c1917",
                 fontFamily:"'Outfit',sans-serif", marginBottom:8 }}>
-                Scanning Resume...
+                {t.scanTitle}
               </div>
-              <div style={{ fontSize:13, color:"rgba(255,255,255,0.4)", marginBottom:36 }}>
-                AI is analyzing your document
+              <div style={{ fontSize:13, color:"#78716c", marginBottom:36 }}>
+                {t.scanSubtitle}
               </div>
 
               {[
-                { label: "Reading document structure", icon: "📄" },
-                { label: "Extracting key information", icon: "🔍" },
-                { label: "Matching against job requirements", icon: "🎯" },
-                { label: "Generating ATS score", icon: "📊" },
+                { label: t.scanStep1, icon: "📄" },
+                { label: t.scanStep2, icon: "🔍" },
+                { label: t.scanStep3, icon: "🎯" },
+                { label: t.scanStep4, icon: "📊" },
               ].map((step, i) => (
                 <div key={i} style={{
                   display:"flex", alignItems:"center", gap:14,
                   padding:"12px 20px", borderRadius:12, marginBottom:10,
-                  background: scanStep > i ? "rgba(0,212,170,0.08)" : "rgba(255,255,255,0.02)",
-                  border: scanStep > i ? "1px solid rgba(0,212,170,0.2)" : "1px solid rgba(255,255,255,0.05)",
+                  background: scanStep > i ? "rgba(13,148,136,0.06)" : "#faf5ef",
+                  border: scanStep > i ? "1px solid rgba(13,148,136,0.2)" : "1px solid #e8ddd4",
                   transition:"all 0.4s ease",
                   opacity: scanStep > i ? 1 : 0.35,
                 }}>
                   <span style={{ fontSize:18 }}>{step.icon}</span>
-                  <span style={{ fontSize:13, fontWeight:600, color: scanStep > i ? "#00d4aa" : "rgba(255,255,255,0.4)",
+                  <span style={{ fontSize:13, fontWeight:600, color: scanStep > i ? "#0d9488" : "#a8937e",
                     transition:"color 0.4s ease", flex:1, textAlign:"left" }}>
                     {step.label}
                   </span>
                   {scanStep > i && (
-                    <span style={{ fontSize:16, color:"#00d4aa" }}>✓</span>
+                    <span style={{ fontSize:16, color:"#0d9488" }}>✓</span>
                   )}
                   {scanStep === i + 1 && (
                     <span style={{ display:"inline-block", width:14, height:14,
-                      border:"2px solid rgba(0,212,170,0.3)", borderTopColor:"#00d4aa",
+                      border:"2px solid rgba(13,148,136,0.3)", borderTopColor:"#0d9488",
                       borderRadius:"50%", animation:"spin 0.7s linear infinite" }}/>
                   )}
                 </div>
@@ -978,48 +1478,31 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
             <div className="fu d1" style={{ textAlign:"center", marginBottom:44 }}>
               <div style={{
                 display:"inline-flex", alignItems:"center", gap:8,
-                background:"rgba(0,212,170,0.1)", border:"1px solid rgba(0,212,170,0.2)",
+                background:"rgba(13,148,136,0.1)", border:"1px solid rgba(13,148,136,0.2)",
                 borderRadius:999, padding:"6px 16px", fontSize:11, fontWeight:700,
-                letterSpacing:"0.1em", color:"#00d4aa", marginBottom:22, textTransform:"uppercase"
+                letterSpacing:"0.1em", color:"#0d9488", marginBottom:22, textTransform:"uppercase"
               }}>
                 <span>✦</span><span>{t.badge}</span>
               </div>
 
               <h1 style={{ fontFamily:"'Outfit',sans-serif", fontWeight:900, lineHeight:1.1, marginBottom:18 }}>
-                <span style={{ fontSize:"clamp(40px,7vw,66px)", color:"#f1f5f9", display:"block" }}>
+                <span style={{ fontSize:"clamp(40px,7vw,66px)", color:"#1c1917", display:"block" }}>
                   {t.title1}
                 </span>
                 <span style={{
                   fontSize:"clamp(40px,7vw,66px)", display:"block",
-                  background:"linear-gradient(135deg,#00d4aa,#0098d4)",
+                  background:"linear-gradient(135deg,#0d9488,#0369a1)",
                   WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"
                 }}>
                   {t.title2}
                 </span>
               </h1>
 
-              <p style={{ fontSize:16, color:"rgba(255,255,255,0.42)", maxWidth:500,
-                margin:"0 auto", lineHeight:1.75 }}>{t.subtitle}</p>
+              <p style={{ fontSize:16, color:"#78716c", maxWidth:500,
+                margin:"0 auto", lineHeight:1.75, color:"#78716c" }}>{t.subtitle}</p>
             </div>
 
-            {/* ══════════════ FEATURE CHIPS ══════════════ */}
-            <div className="fu d2" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)",
-              gap:12, marginBottom:36 }}>
-              {[
-                { icon:"◈", title:t.feat1Title, desc:t.feat1Desc },
-                { icon:"◎", title:t.feat2Title, desc:t.feat2Desc },
-                { icon:"◆", title:t.feat3Title, desc:t.feat3Desc },
-              ].map((f, i) => (
-                <div key={i} className="card" style={{ padding:"14px 16px", display:"flex",
-                  alignItems:"center", gap:10 }}>
-                  <span style={{ fontSize:18, color:"#00d4aa", flexShrink:0 }}>{f.icon}</span>
-                  <div>
-                    <div style={{ fontSize:12, fontWeight:700, color:"#f1f5f9" }}>{f.title}</div>
-                    <div style={{ fontSize:11, color:"rgba(255,255,255,0.32)", marginTop:2 }}>{f.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+
 
             {/* ══════════════ FORM CARD ══════════════ */}
             <div className="card fu d3" style={{ padding:32 }}>
@@ -1043,37 +1526,37 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
                         borderRadius:14, display:"flex", alignItems:"center", justifyContent:"center",
                         fontSize:24 }}>📄</div>
                       <div>
-                        <div style={{ fontWeight:700, color:"#00d4aa", fontSize:15 }}>{file.name}</div>
-                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.32)", marginTop:4 }}>
+                        <div style={{ fontWeight:700, color:"#0d9488", fontSize:15 }}>{file.name}</div>
+                        <div style={{ fontSize:12, color:"#a8937e", marginTop:4 }}>
                           {(file.size / 1024 / 1024).toFixed(2)} MB
                         </div>
                       </div>
                       <button onClick={e => { e.stopPropagation(); setFile(null); }}
-                        style={{ background:"rgba(244,63,94,0.13)", border:"1px solid rgba(244,63,94,0.28)",
-                          borderRadius:8, color:"#f43f5e", padding:"6px 14px", cursor:"pointer",
+                        style={{ background:"rgba(220,38,38,0.08)", border:"1px solid rgba(220,38,38,0.2)",
+                          borderRadius:8, color:"#b91c1c", padding:"6px 14px", cursor:"pointer",
                           fontSize:12, fontWeight:600, fontFamily:"'Manrope',sans-serif" }}>
                         {t.removeFile}
                       </button>
                     </>
                   ) : (
                     <>
-                      <div style={{ width:60, height:60, background:"rgba(0,212,170,0.1)",
+                      <div style={{ width:60, height:60, background:"rgba(13,148,136,0.1)",
                         borderRadius:16, display:"flex", alignItems:"center", justifyContent:"center" }}>
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                          <path d="M12 16V8M12 8L8 12M12 8L16 12" stroke="#00d4aa"
+                          <path d="M12 16V8M12 8L8 12M12 8L16 12" stroke="#0d9488"
                             strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                           <path d="M3 16.5V18.75C3 19.993 4.007 21 5.25 21H18.75C19.993 21 21 19.993 21 18.75V16.5"
-                            stroke="#00d4aa" strokeWidth="2.5" strokeLinecap="round"/>
+                            stroke="#0d9488" strokeWidth="2.5" strokeLinecap="round"/>
                         </svg>
                       </div>
                       <div>
-                        <span style={{ fontWeight:700, color:"#f1f5f9", fontSize:15 }}>
+                        <span style={{ fontWeight:700, color:"#1c1917", fontSize:15 }}>
                           {t.dropText}{" "}
                         </span>
-                        <span style={{ color:"#00d4aa", fontWeight:700, fontSize:15,
-                          borderBottom:"1px solid rgba(0,212,170,0.4)" }}>{t.browse}</span>
+                        <span style={{ color:"#0d9488", fontWeight:800, fontSize:15,
+                          borderBottom:"1px solid rgba(13,148,136,0.5)" }}>{t.browse}</span>
                       </div>
-                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.28)" }}>{t.fileHint}</div>
+                      <div style={{ fontSize:12, color:"#78716c", fontWeight:600 }}>{t.fileHint}</div>
                     </>
                   )}
                 </div>
@@ -1096,7 +1579,7 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
               <div style={{ marginBottom:26 }}>
                 <label className="field-label" style={{ display:"flex", alignItems:"center", gap:8 }}>
                   {t.jobDescLabel}
-                  <span style={{ color:"rgba(255,255,255,0.28)", fontSize:11, fontWeight:500,
+                  <span style={{ color:"#a8937e", fontSize:11, fontWeight:500,
                     textTransform:"none", letterSpacing:0 }}>{t.jobDescHint}</span>
                 </label>
                 <textarea className="inp" rows={5} value={jobDesc}
@@ -1122,7 +1605,7 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
                 )}
               </button>
 
-              <p style={{ textAlign:"center", fontSize:11, color:"rgba(255,255,255,0.18)",
+              <p style={{ textAlign:"center", fontSize:11, color:"#c4a98a",
                 marginTop:14, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
                 <span>🔒</span>{t.privacy}
               </p>
@@ -1133,13 +1616,25 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
 
           /* ══════════════ RESULTS ══════════════ */
           <div>
+            {/* Translating indicator */}
+            {translating && (
+              <div className="fu" style={{ display:"flex", alignItems:"center", justifyContent:"center",
+                gap:10, padding:"12px 20px", background:"rgba(13,148,136,0.07)",
+                border:"1px solid rgba(13,148,136,0.2)", borderRadius:12, marginBottom:14,
+                fontSize:13, color:"#0d9488", fontWeight:600 }}>
+                <span style={{ display:"inline-block", width:14, height:14,
+                  border:"2px solid rgba(13,148,136,0.3)", borderTopColor:"#0d9488",
+                  borderRadius:"50%", animation:"spin 0.7s linear infinite" }}/>
+                Translating results...
+              </div>
+            )}
             <div className="card fu" style={{ padding:40, marginBottom:18, textAlign:"center" }}>
-              <div style={{ fontSize:11, fontWeight:700, color:"#00d4aa",
+              <div style={{ fontSize:11, fontWeight:700, color:"#0d9488",
                 letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:6 }}>
                 ✦ {t.resultHeading}
               </div>
               <h2 style={{ fontFamily:"'Outfit',sans-serif", fontWeight:800,
-                fontSize:26, color:"#f1f5f9", marginBottom:34 }}>{t.resultSubheading}</h2>
+                fontSize:26, color:"#1c1917", marginBottom:34 }}>{t.resultSubheading}</h2>
 
               <div style={{ display:"flex", justifyContent:"center", gap:56, flexWrap:"wrap" }}>
                 <ScoreRing score={result.resumeScore} label={t.resumeScore} color="teal" delay={200} />
@@ -1151,11 +1646,31 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
                 {[["#00d4aa", `${t.resumeScore}: ${result.resumeScore}/100`],
                   ["#f59e0b", `${t.atsScore}: ${result.atsScore}/100`]].map(([c, l], i) => (
                   <div key={i} style={{ display:"flex", alignItems:"center", gap:7,
-                    fontSize:13, color:"rgba(255,255,255,0.45)" }}>
+                    fontSize:13, color:"#78716c" }}>
                     <span style={{ width:9, height:9, borderRadius:"50%",
                       background:c, display:"inline-block" }} />{l}
                   </div>
                 ))}
+              </div>
+
+              {/* Score descriptions */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginTop:28 }}>
+                <div style={{ background:"rgba(13,148,136,0.05)", border:"1px solid rgba(13,148,136,0.15)",
+                  borderRadius:12, padding:"14px 16px", textAlign:"left" }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:"#0d9488", letterSpacing:"0.08em",
+                    textTransform:"uppercase", marginBottom:6 }}>📋 {t.resumeScore}</div>
+                  <div style={{ fontSize:12, color:"#44403c", fontWeight:500, lineHeight:1.6 }}>
+                    {t.resumeScoreDesc}
+                  </div>
+                </div>
+                <div style={{ background:"rgba(217,119,6,0.05)", border:"1px solid rgba(217,119,6,0.15)",
+                  borderRadius:12, padding:"14px 16px", textAlign:"left" }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:"#b45309", letterSpacing:"0.08em",
+                    textTransform:"uppercase", marginBottom:6 }}>🤖 {t.atsScore}</div>
+                  <div style={{ fontSize:12, color:"#44403c", fontWeight:500, lineHeight:1.6 }}>
+                    {t.atsScoreDesc}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1163,9 +1678,9 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
                 <span style={{ fontSize:18 }}>📋</span>
                 <h3 style={{ fontFamily:"'Outfit',sans-serif", fontWeight:700,
-                  fontSize:16, color:"#f1f5f9" }}>{t.summaryTitle}</h3>
+                  fontSize:16, color:"#1c1917" }}>{t.summaryTitle}</h3>
               </div>
-              <p style={{ color:"rgba(255,255,255,0.55)", lineHeight:1.8, fontSize:14 }}>
+              <p style={{ color:"#57534e", lineHeight:1.8, fontSize:14 }}>
                 {result.summary}
               </p>
             </div>
@@ -1174,7 +1689,7 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
                 <span style={{ fontSize:18 }}>🌟</span>
                 <h3 style={{ fontFamily:"'Outfit',sans-serif", fontWeight:700,
-                  fontSize:16, color:"#f1f5f9" }}>{t.strengthsTitle}</h3>
+                  fontSize:16, color:"#1c1917" }}>{t.strengthsTitle}</h3>
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 {(result.strengths || []).map((s, i) => (
@@ -1190,17 +1705,17 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
                 <span style={{ fontSize:18 }}>🔧</span>
                 <h3 style={{ fontFamily:"'Outfit',sans-serif", fontWeight:700,
-                  fontSize:16, color:"#f1f5f9" }}>{t.improvementsTitle}</h3>
+                  fontSize:16, color:"#1c1917" }}>{t.improvementsTitle}</h3>
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 {(result.improvements || []).map((item, i) => (
                   <div key={i} className="improve-item">
                     <div className="improve-num">{i + 1}</div>
                     <div>
-                      <div style={{ fontWeight:700, color:"#f1f5f9", fontSize:14, marginBottom:6 }}>
+                      <div style={{ fontWeight:700, color:"#1c1917", fontSize:14, marginBottom:6 }}>
                         {item.title}
                       </div>
-                      <div style={{ fontSize:13, color:"rgba(255,255,255,0.48)", lineHeight:1.7 }}>
+                      <div style={{ fontSize:13, color:"#78716c", lineHeight:1.7 }}>
                         {item.description}
                       </div>
                     </div>
@@ -1230,11 +1745,11 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
                   flexWrap:"wrap", gap:14, marginBottom:24 }}>
                   <div>
-                    <div style={{ fontSize:11, fontWeight:700, color:"#00d4aa",
+                    <div style={{ fontSize:11, fontWeight:700, color:"#0d9488",
                       letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:4 }}>
                       ✦ {t.improvedTitle}
                     </div>
-                    <div style={{ fontSize:13, color:"rgba(255,255,255,0.4)" }}>{t.improvedSubtitle}</div>
+                    <div style={{ fontSize:13, color:"#78716c" }}>{t.improvedSubtitle}</div>
                   </div>
                   <button className="btn-main" onClick={downloadResume}
                     style={{ width:"auto", padding:"12px 22px", fontSize:13 }}>
@@ -1243,16 +1758,16 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
                 </div>
 
                 {/* Name & Contact */}
-                <div style={{ borderBottom:"1px solid rgba(255,255,255,0.1)", paddingBottom:18, marginBottom:20 }}>
-                  <div style={{ fontFamily:"'Outfit',sans-serif", fontSize:24, fontWeight:800, color:"#f1f5f9" }}>
+                <div style={{ borderBottom:"1px solid #e8ddd4", paddingBottom:18, marginBottom:20 }}>
+                  <div style={{ fontFamily:"'Outfit',sans-serif", fontSize:24, fontWeight:800, color:"#1c1917" }}>
                     {improvedResume.name}
                   </div>
-                  <div style={{ fontSize:13, color:"#00d4aa", marginTop:4 }}>{improvedResume.contact}</div>
+                  <div style={{ fontSize:13, color:"#0d9488", marginTop:4 }}>{improvedResume.contact}</div>
                 </div>
 
                 {/* Summary */}
                 <ResumeSection title="Professional Summary" icon="📋">
-                  <p style={{ color:"rgba(255,255,255,0.6)", lineHeight:1.8, fontSize:14 }}>{improvedResume.summary}</p>
+                  <p style={{ color:"#44403c", lineHeight:1.8, fontSize:14 }}>{improvedResume.summary}</p>
                 </ResumeSection>
 
                 {/* Experience */}
@@ -1262,14 +1777,14 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
                       <div key={i} style={{ marginBottom:16 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", flexWrap:"wrap", gap:4 }}>
                           <div>
-                            <span style={{ fontWeight:700, color:"#f1f5f9", fontSize:14 }}>{exp.title}</span>
-                            <span style={{ color:"#00d4aa", fontSize:13 }}> — {exp.company}</span>
+                            <span style={{ fontWeight:700, color:"#1c1917", fontSize:14 }}>{exp.title}</span>
+                            <span style={{ color:"#0d9488", fontSize:13 }}> — {exp.company}</span>
                           </div>
-                          <span style={{ fontSize:12, color:"rgba(255,255,255,0.35)" }}>{exp.duration}</span>
+                          <span style={{ fontSize:12, color:"#78716c" }}>{exp.duration}</span>
                         </div>
                         <ul style={{ paddingLeft:18, marginTop:6 }}>
                           {(exp.bullets || []).map((b, j) => (
-                            <li key={j} style={{ color:"rgba(255,255,255,0.55)", fontSize:13, marginBottom:3, lineHeight:1.6 }}>{b}</li>
+                            <li key={j} style={{ color:"#57534e", fontSize:13, marginBottom:3, lineHeight:1.6 }}>{b}</li>
                           ))}
                         </ul>
                       </div>
@@ -1282,8 +1797,8 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
                   <ResumeSection title="Projects" icon="🚀">
                     {improvedResume.projects.map((p, i) => (
                       <div key={i} style={{ marginBottom:10 }}>
-                        <div style={{ fontWeight:700, color:"#f1f5f9", fontSize:13 }}>{p.name}</div>
-                        <div style={{ color:"rgba(255,255,255,0.5)", fontSize:13, lineHeight:1.6 }}>{p.description}</div>
+                        <div style={{ fontWeight:700, color:"#1c1917", fontSize:13 }}>{p.name}</div>
+                        <div style={{ color:"#57534e", fontSize:13, lineHeight:1.6 }}>{p.description}</div>
                       </div>
                     ))}
                   </ResumeSection>
@@ -1295,10 +1810,10 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
                     {improvedResume.education.map((e, i) => (
                       <div key={i} style={{ display:"flex", justifyContent:"space-between", marginBottom:8, flexWrap:"wrap", gap:4 }}>
                         <div>
-                          <div style={{ fontWeight:700, color:"#f1f5f9", fontSize:13 }}>{e.degree}</div>
-                          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12 }}>{e.school}</div>
+                          <div style={{ fontWeight:700, color:"#1c1917", fontSize:13 }}>{e.degree}</div>
+                          <div style={{ color:"#78716c", fontSize:12 }}>{e.school}</div>
                         </div>
-                        <div style={{ color:"rgba(255,255,255,0.35)", fontSize:12 }}>{e.year}</div>
+                        <div style={{ color:"#78716c", fontSize:12 }}>{e.year}</div>
                       </div>
                     ))}
                   </ResumeSection>
@@ -1306,7 +1821,7 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
 
                 {/* Skills */}
                 <ResumeSection title="Skills" icon="⚡">
-                  <div style={{ color:"rgba(255,255,255,0.6)", fontSize:13, lineHeight:1.8 }}>{improvedResume.skills}</div>
+                  <div style={{ color:"#44403c", fontSize:13, lineHeight:1.8 }}>{improvedResume.skills}</div>
                 </ResumeSection>
 
                 <div style={{ textAlign:"center", marginTop:8 }}>
