@@ -527,7 +527,7 @@ function ResumeSection({ title, icon, children }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MAIN APP
+   MAIN APP  
 ═══════════════════════════════════════════════════════════ */
 export default function ResumeAnalyzer() {
   const [lang, setLang]         = useState("en");
@@ -1226,7 +1226,7 @@ Respond ONLY with a valid JSON object in this exact structure, no markdown fence
     }
   };
 
-  /* ── Download as HTML/PDF ── */
+  /* ── Download as HTML/PDF  ── */
   const downloadResume = () => {
     const r = improvedResume;
     const html = `<!DOCTYPE html>
