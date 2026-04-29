@@ -1006,40 +1006,53 @@ ${JSON.stringify(baseResult, null, 2)}`;
 
       // ── ALWAYS analyze in English — ensures consistent scores every time ──
       // Language is applied AFTER via translation, not during scoring.
-      const prompt = `You are a professional resume coach and career consultant. Read the resume below carefully and give an honest, helpful analysis.
+      const prompt = `You are a strict and honest resume evaluator. Your job is to score how well a resume matches a specific job — accurately and fairly, not generously.
 
---- RESUME START ---
+--- RESUME TEXT START ---
 ${resumeText}
---- RESUME END ---
+--- RESUME TEXT END ---
 
 Target Job Title: ${jobTitle}
-${jobDesc ? `Job Description:\n${jobDesc}` : ""}
+${jobDesc ? `Job Description:\n${jobDesc}` : "No description provided — evaluate based on job title only."}
 
 STRICT RULES:
 1. Write 100% in ENGLISH.
-2. This is a real person's resume. Treat it seriously.
-3. Find and reference the person's ACTUAL name, companies, skills, technologies, and projects from the text.
-4. ALWAYS return exactly 3 strengths — real specific things this person has done or knows.
-5. ALWAYS return exactly 4 improvements — specific actionable advice for this exact resume.
-6. Do NOT say "this is not a resume" unless the document is completely unreadable gibberish.
+2. Read the resume text carefully. Find the person's actual name, skills, technologies, job experience, and projects.
+3. ALWAYS return exactly 3 strengths — specific things actually found in this resume.
+4. ALWAYS return exactly 4 improvements — specific actionable advice for this exact resume.
+5. Do NOT say "this is not a resume" unless the text is completely unreadable garbage.
 
-SCORING RULES:
-- resumeScore = how well THIS resume matches the job title/description (keyword match, relevant skills, experience fit)
-  - Strong match with good keywords and relevant experience: 70-90
-  - Decent match but missing some keywords: 55-70
-  - Weak match or little relevant experience: 40-55
-  - Two different resumes for same job MUST get different scores if content differs
-- atsScore = how well structured the resume is for ATS systems
-  - Clear sections (Experience, Education, Skills), bullet points, action verbs: 65-85
-  - Some structure but missing sections or weak formatting: 50-65
-  - Poor structure, no clear sections: 35-50
-- Minimum score for any real resume with readable content is 45.
+SCORING RULES — READ CAREFULLY:
+
+resumeScore (job match score):
+This score measures how closely the resume skills and experience match the target job title and description.
+Compare every skill, technology, and experience in the resume directly against what the job requires.
+
+- 75 to 95: The resume clearly matches the job. Most required skills are present. The person has done this kind of work before.
+- 55 to 74: Partial match. Some relevant skills exist but key technologies or experience are missing.
+- 30 to 54: Weak match. The resume is in a different field or missing most required skills.
+- 10 to 29: No meaningful match. The resume is completely unrelated to the target job.
+
+IMPORTANT EXAMPLES you must follow:
+- Frontend resume (HTML, CSS, JavaScript, React) targeting Frontend Developer → resumeScore 75 to 90
+- Frontend resume targeting Backend Developer (Node.js, databases, APIs, servers) → resumeScore 20 to 40
+- Full-stack resume targeting Frontend Developer → resumeScore 65 to 80
+- Completely unrelated resume (e.g. accountant targeting software engineer) → resumeScore 10 to 25
+
+atsScore (document structure score):
+This score measures how well the resume is formatted for ATS (Applicant Tracking Systems). It does NOT change based on job match.
+- 65 to 85: Clear sections (Experience, Education, Skills), bullet points, action verbs, contact info present.
+- 45 to 64: Some structure but sections are missing or weak formatting.
+- 25 to 44: Poor formatting, no clear sections, walls of text.
+
+DO NOT give scores of exactly 50 and 45 — those are the old defaults. Score based on actual content.
+DO NOT round to the nearest 5. Use specific numbers like 72, 38, 81, 27.
 
 Respond ONLY with valid JSON — no markdown fences, no text before or after:
 {
-  "resumeScore": <integer 45-100>,
-  "atsScore": <integer 45-100>,
-  "summary": "<2-3 sentences mentioning the person by name and referencing their actual skills, companies, or projects>",
+  "resumeScore": <integer 10-100>,
+  "atsScore": <integer 25-100>,
+  "summary": "<2-3 sentences mentioning the person by name and their actual skills, experience, and how well they match the job>",
   "strengths": [
     "<strength 1 — specific real thing from this resume>",
     "<strength 2 — specific real thing from this resume>",
@@ -1053,12 +1066,16 @@ Respond ONLY with valid JSON — no markdown fences, no text before or after:
   ]
 }`;
 
+      const controller = new AbortController();
+      const timeoutId  = setTimeout(() => controller.abort(), 40000); // 40s timeout
+
       const [res] = await Promise.all([
         fetch("http://localhost:3001/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt }),
-        }),
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeoutId)),
         new Promise(r => setTimeout(r, 2500)),
       ]);
 
@@ -1067,9 +1084,92 @@ Respond ONLY with valid JSON — no markdown fences, no text before or after:
 
       const english = parseJSON(data.text || "");
 
-      // Enforce minimum scores — never show below 45 for a real resume
-      if (english.resumeScore < 45) english.resumeScore = 45;
-      if (english.atsScore < 45)    english.atsScore    = 45;
+      // ── Smart score calibration ───────────────────────────────────
+      // Instead of relying on the AI to produce correct score ranges
+      // (which is inconsistent), we compute a match level ourselves
+      // by checking keywords in the resume vs the job title, then
+      // nudge the AI score into the correct band with a small random
+      // offset so scores feel natural and not identical every time.
+
+      const resumeLower = resumeText.toLowerCase();
+      const jobLower    = (jobTitle + " " + jobDesc).toLowerCase();
+
+      // Keyword groups — each group represents one type of role
+      const roleKeywords = {
+        frontend: [
+          "html", "css", "javascript", "react", "vue", "angular",
+          "tailwind", "bootstrap", "sass", "scss", "webpack", "vite",
+          "responsive", "ui", "ux", "frontend", "front-end", "front end",
+          "dom", "typescript", "next.js", "gatsby", "figma", "web design"
+        ],
+        backend: [
+          "node.js", "express", "django", "flask", "spring", "laravel",
+          "php", "ruby", "rest api", "graphql", "sql", "mysql",
+          "postgresql", "mongodb", "redis", "docker", "kubernetes",
+          "backend", "back-end", "back end", "server", "microservices",
+          "api", "database", "aws", "azure", "cloud", "devops"
+        ],
+        data: [
+          "python", "pandas", "numpy", "tensorflow", "pytorch", "sklearn",
+          "machine learning", "deep learning", "data science", "jupyter",
+          "tableau", "power bi", "r language", "statistics", "nlp",
+          "data analyst", "data engineer", "big data", "spark", "hadoop"
+        ],
+        mobile: [
+          "android", "ios", "flutter", "react native", "swift", "kotlin",
+          "xcode", "mobile app", "play store", "app store"
+        ],
+      };
+
+      // Score how many keywords from each group appear in the resume
+      const resumeGroupScore = {};
+      for (const [group, keywords] of Object.entries(roleKeywords)) {
+        resumeGroupScore[group] = keywords.filter(k => resumeLower.includes(k)).length;
+      }
+
+      // Detect which role the JOB is asking for
+      const jobGroup = Object.entries(roleKeywords).reduce(
+        (best, [group, keywords]) => {
+          const count = keywords.filter(k => jobLower.includes(k)).length;
+          return count > best.count ? { group, count } : best;
+        },
+        { group: "frontend", count: 0 }
+      ).group;
+
+      // How many resume keywords match the job group
+      const matchCount   = resumeGroupScore[jobGroup] || 0;
+      const totalInGroup = roleKeywords[jobGroup].length;
+      const matchRatio   = matchCount / totalInGroup;
+
+      // Determine target score band based on match ratio
+      // rand() adds natural variation so scores are never identical
+      const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+      let targetResume;
+      if (matchRatio >= 0.25) {
+        // Strong match — resume clearly fits this job type
+        targetResume = rand(72, 88);
+      } else if (matchRatio >= 0.12) {
+        // Partial match — some overlap but not the primary role
+        targetResume = rand(50, 68);
+      } else {
+        // Weak match — resume is for a different type of role
+        targetResume = rand(22, 42);
+      }
+
+      // Blend AI score (30%) with our calculated target (70%)
+      // This keeps AI's nuance while enforcing the correct band
+      const aiResume  = english.resumeScore || 50;
+      english.resumeScore = Math.round(aiResume * 0.3 + targetResume * 0.7);
+
+      // ATS score is purely about document structure — do not change it much
+      // Just enforce a sensible floor and ceiling
+      if (english.atsScore < 30) english.atsScore = rand(45, 55);
+      if (english.atsScore > 90) english.atsScore = rand(78, 86);
+
+      // Final safety clamp
+      english.resumeScore = Math.max(10, Math.min(95, english.resumeScore));
+      english.atsScore    = Math.max(30, Math.min(90, english.atsScore));
 
       // Ensure strengths array always has 3 items
       if (!Array.isArray(english.strengths) || english.strengths.length === 0) {
@@ -1145,10 +1245,14 @@ ${JSON.stringify(english, null, 2)}`;
     } catch (err) {
       console.error("Analyze error:", err);
       setScanning(false);
-      setError(t.errFailed + " (" + (err.message || "unknown error") + ")");
+      const msg = err.name === "AbortError"
+        ? "Request timed out. The server took too long to respond. Please try again."
+        : (err.message || "unknown error");
+      setError(t.errFailed + " (" + msg + ")");
     } finally {
       timers.forEach(clearTimeout);
       setLoading(false);
+      setScanning(false); // safety net — ensures scanning screen never hangs forever
     }
   };
 
