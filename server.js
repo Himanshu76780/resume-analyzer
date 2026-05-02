@@ -9,7 +9,7 @@ app.use(express.json({ limit: "20mb" }));
 
 const GROQ_API_KEY =
   process.env.GROQ_API_KEY ||
-  "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";
+  "grok api key ";
 
 if (!GROQ_API_KEY) {
   console.error("  GROQ_API_KEY is missing. Add it to your .env file.");
